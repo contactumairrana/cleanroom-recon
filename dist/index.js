@@ -37,10 +37,44 @@ export async function runCleanroomRecon(options) {
             aggregateCode += '\n' + s.content;
         }
     }
-    // 4. Extract Endpoints & Audit Telemetry
+    // 4. Deep Forensic Fetch for External Script Bundles (up to 8 main bundles)
+    if (options.url && bundle.scripts.length > 0) {
+        const limit = options.maxBundlesToFetch || 8;
+        const externalScripts = bundle.scripts
+            .filter(s => !s.isInline && s.url.startsWith('http'))
+            .slice(0, limit);
+        if (externalScripts.length > 0) {
+            const fetched = await Promise.allSettled(externalScripts.map(async (s) => {
+                try {
+                    const res = await fetch(s.url, {
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) CleanRoomRecon/1.0' }
+                    });
+                    if (res.ok) {
+                        const text = await res.text();
+                        s.content = text;
+                        if (text.includes('sourceMappingURL=')) {
+                            s.hasSourceMap = true;
+                            bundle.hasSourceMaps = true;
+                        }
+                        return text;
+                    }
+                }
+                catch {
+                    // gracefully fallback if an individual chunk fails
+                }
+                return '';
+            }));
+            for (const item of fetched) {
+                if (item.status === 'fulfilled' && item.value) {
+                    aggregateCode += '\n' + item.value;
+                }
+            }
+        }
+    }
+    // 5. Extract Endpoints & Audit Telemetry from aggregate code
     const endpoints = extractApiEndpoints(aggregateCode);
     const security = auditTelemetry(aggregateCode);
-    // 5. Generate Architecture & Mermaid
+    // 6. Generate Architecture & Mermaid
     const report = generateArchitectureReport(targetUrl, bundle, endpoints, security);
     return {
         targetUrl,

@@ -136,3 +136,4 @@ export function generateArchitectureReport(
     securityAuditMarkdown: sec
   };
 }
+

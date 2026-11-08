@@ -10,6 +10,7 @@ export interface CleanroomReconOptions {
     url?: string;
     html?: string;
     scriptContents?: string[];
+    maxBundlesToFetch?: number;
 }
 export interface CleanroomReconOutput {
     targetUrl: string;

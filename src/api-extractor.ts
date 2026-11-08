@@ -81,3 +81,4 @@ function inferCategory(path: string): ApiEndpoint['inferredCategory'] {
   }
   return 'Core Feature';
 }
+
