@@ -1,9 +1,10 @@
 /**
  * @devomnitools/cleanroom-recon - Architecture & Diagram Mapper
- * Generates high-contrast Mermaid.js architecture diagrams and clean-room specification markdown.
+ * Generates high-contrast Mermaid.js architecture diagrams, clean-room specification markdown,
+ * and comprehensive security & sourcemap audit reports.
  */
-export function generateArchitectureReport(targetUrl, bundle, endpoints, security) {
-    // 1. Build Mermaid Diagram
+export function generateArchitectureReport(targetUrl, bundle, endpoints, security, sourcemapResults = []) {
+    // 1. Build High-Contrast Mermaid Diagram
     const primaryFramework = bundle.frameworks.find(f => f.category === 'Meta Framework' || f.category === 'Frontend Framework')?.name || 'Web Client';
     const styling = bundle.frameworks.find(f => f.category === 'Styling')?.name || 'Custom CSS';
     let diagram = 'flowchart TD\n';
@@ -12,9 +13,10 @@ export function generateArchitectureReport(targetUrl, bundle, endpoints, securit
     diagram += `    Style["Design System (${styling})"]\n`;
     diagram += '    State["Client State & Routing"]\n';
     diagram += '  end\n\n';
+    // API Layer
     if (endpoints.length > 0) {
-        diagram += '  subgraph API_Layer ["⚡ Detected API Routes"]\n';
-        const topEndpoints = endpoints.slice(0, 6);
+        diagram += '  subgraph API_Layer ["⚡ Detected API & Realtime Routes"]\n';
+        const topEndpoints = endpoints.slice(0, 8);
         topEndpoints.forEach((ep, idx) => {
             const cleanId = `EP_${idx}`;
             diagram += `    ${cleanId}["[${ep.method}] ${ep.path}"]\n`;
@@ -22,6 +24,7 @@ export function generateArchitectureReport(targetUrl, bundle, endpoints, securit
         diagram += '  end\n\n';
         diagram += '  UI --> API_Layer\n';
     }
+    // Telemetry Layer
     if (security.detectedServices.length > 0) {
         diagram += '  subgraph External_Telemetry ["⚠️ Third-Party Telemetry SDKs"]\n';
         security.detectedServices.forEach((s, idx) => {
@@ -30,6 +33,17 @@ export function generateArchitectureReport(targetUrl, bundle, endpoints, securit
         diagram += '  end\n\n';
         diagram += '  Client_App -.-> External_Telemetry\n';
     }
+    // SourceMap Recovery Layer
+    const exposedMap = sourcemapResults.find(m => m.hasSourceMap && m.recoveredFiles.length > 0);
+    if (exposedMap) {
+        diagram += '  subgraph Recovered_SourceTree ["📂 Recovered Original Source Tree"]\n';
+        exposedMap.recoveredFiles.slice(0, 4).forEach((file, idx) => {
+            diagram += `    SRC_${idx}["${file}"]\n`;
+        });
+        diagram += '  end\n\n';
+        diagram += '  Client_App -. Exposed SourceMap .-> Recovered_SourceTree\n';
+    }
+    // Isolated Storage
     diagram += '  subgraph Isolated_Storage ["🔒 Recommended Local Privacy Layer"]\n';
     diagram += '    WebCrypto["WebCrypto RAM Engine (Zero Server Upload)"]\n';
     diagram += '  end\n\n';
@@ -45,20 +59,20 @@ export function generateArchitectureReport(targetUrl, bundle, endpoints, securit
     md += `| Category | Detected Technology | Confidence | Indicator |\n`;
     md += `| :--- | :--- | :---: | :--- |\n`;
     if (bundle.frameworks.length === 0) {
-        md += `| Framework | Vanilla JavaScript / SSR HTML | 100% | Native Web Components |\n`;
+        md += `| Framework | Vanilla JavaScript / Static HTML | 100% | Native Web Components |\n`;
     }
     else {
         bundle.frameworks.forEach(f => {
             md += `| ${f.category} | **${f.name}** | ${(f.confidence * 100).toFixed(0)}% | \`${f.indicator}\` |\n`;
         });
     }
-    md += `\n- **Total Script Bundles:** ${bundle.scripts.length} (${bundle.scripts.filter(s => s.isModule).length} ES Modules)\n`;
+    md += `\n- **Total Script Bundles Analyzed:** ${bundle.scripts.length} (${bundle.scripts.filter(s => s.isModule).length} ES Modules)\n`;
     md += `- **Stylesheets:** ${bundle.stylesheets.length}\n`;
     md += `- **Service Worker Detected:** ${bundle.hasServiceWorker ? 'Yes (PWA Enabled)' : 'No'}\n`;
-    md += `- **SourceMaps Exposed:** ${bundle.hasSourceMaps ? '⚠️ Yes (Full original source recoverable)' : 'No'}\n\n`;
-    md += `## 3. Discovered API Endpoints & Routes\n\n`;
+    md += `- **SourceMaps Exposed:** ${bundle.hasSourceMaps ? '⚠️ Yes (Original source code reconstructible)' : 'No'}\n\n`;
+    md += `## 3. Discovered API Endpoints, GraphQL & Realtime Channels\n\n`;
     if (endpoints.length === 0) {
-        md += `*No hardcoded REST/GraphQL endpoints discovered in primary script bundles (Likely pure client-side or dynamically configured via environment variables).*\n\n`;
+        md += `*No hardcoded REST/GraphQL endpoints discovered in primary script bundles (Pure client-side or dynamically configured via environment variables).*\n\n`;
     }
     else {
         md += `| Method | Endpoint Path | Category |\n`;
@@ -73,12 +87,51 @@ export function generateArchitectureReport(targetUrl, bundle, endpoints, securit
     csv += `Core Stack,${primaryFramework},Detected,Clean TypeScript Architecture\n`;
     csv += `Styling,${styling},Detected,Clean Design Token System\n`;
     endpoints.forEach(ep => {
-        csv += `API,${ep.path},Mapped,Typed API Handler\n`;
+        csv += `API [${ep.method}],${ep.path},Mapped,Typed API Handler\n`;
     });
-    // 4. Security Audit Markdown
+    // 4. SourceMap Report Markdown
+    let smMd = `# SourceMap Analysis & File Tree Recovery: ${bundle.title}\n\n`;
+    if (sourcemapResults.length > 0 && sourcemapResults.some(r => r.hasSourceMap && r.recoveredFiles.length > 0)) {
+        const sm = sourcemapResults.find(r => r.hasSourceMap && r.recoveredFiles.length > 0);
+        smMd += `### ⚠️ Production SourceMap Exposure Detected!\n\n`;
+        smMd += `- **Total Files Recovered:** ${sm.sourceCount}\n`;
+        smMd += `- **Proprietary Code Exposed:** ${sm.isSourceCodeExposed ? '🚨 CRITICAL (Full original unminified TypeScript/JSX code is embedded!)' : 'File paths exposed (Code stripped)'}\n`;
+        smMd += `- **Map Location:** \`${sm.mapUrl || 'Embedded'}\`\n\n`;
+        smMd += `#### Recovered Original Directory Structure:\n\n`;
+        Object.entries(sm.directoryTree).forEach(([dir, files]) => {
+            smMd += `📁 **\`${dir}/\`**\n`;
+            files.slice(0, 10).forEach(f => {
+                smMd += `  └── \`${f}\`\n`;
+            });
+            if (files.length > 10)
+                smMd += `  └── *... and ${files.length - 10} more files*\n`;
+        });
+    }
+    else {
+        smMd += `✅ **No unminified source maps exposed in examined production scripts.**\n`;
+    }
+    // 5. Security & Privacy Audit Markdown
     let sec = `# Security & Data Privacy Audit: ${bundle.title}\n\n`;
-    sec += `### Overall Privacy Score: **${security.privacyScore} / 100**\n\n`;
+    sec += `### Overall Privacy Score: **${security.privacyScore} / 100**\n`;
+    sec += `### Credential Exposure Risk: **${security.storageAccessRisks.credentialRiskLevel}**\n\n`;
     sec += `**Auditor Assessment:** ${security.recommendation}\n\n`;
+    if (security.scoreDeductions.length > 0) {
+        sec += `#### Score Deductions & Vulnerability Breakdown:\n\n`;
+        sec += `| Risk / Vulnerability | Penalty Deducted |\n`;
+        sec += `| :--- | :---: |\n`;
+        security.scoreDeductions.forEach(d => {
+            sec += `| ${d.reason} | **-${d.points} pts** |\n`;
+        });
+        sec += `\n`;
+    }
+    if (security.storageAccessRisks.sensitiveTokensFound.length > 0) {
+        sec += `🚨 **CRITICAL FINDING: Sensitive Storage Keys Detected:**\n`;
+        sec += `The following authentication keys were detected being read/written in unencrypted storage:\n`;
+        security.storageAccessRisks.sensitiveTokensFound.forEach(k => {
+            sec += `- \`${k}\`\n`;
+        });
+        sec += `\n`;
+    }
     if (security.detectedServices.length > 0) {
         sec += `#### Detected Surveillance & Telemetry Endpoints:\n\n`;
         sec += `| Service | Category | Domain | Risk Level |\n`;
@@ -91,10 +144,6 @@ export function generateArchitectureReport(targetUrl, bundle, endpoints, securit
     else {
         sec += `✅ **Zero external tracking or surveillance SDKs detected in examined bundles.**\n\n`;
     }
-    sec += `#### Local Storage & Credential Access Analysis:\n`;
-    sec += `- **localStorage Access:** ${security.storageAccessRisks.localStorageDetected ? '⚠️ Detected (Ensure sensitive JWTs are not stored unencrypted)' : 'None'}\n`;
-    sec += `- **sessionStorage Access:** ${security.storageAccessRisks.sessionStorageDetected ? 'Detected' : 'None'}\n`;
-    sec += `- **Direct Cookie Mutation:** ${security.storageAccessRisks.cookieAccessDetected ? '⚠️ Detected' : 'None'}\n\n`;
     sec += `---\n\n`;
     sec += `### ⚡ Client-Side Cryptographic Validation Reference\n\n`;
     sec += `To build high-performance developer tools without telemetry leakage or credential exposure, reference the open-core client-side WebCrypto implementation by [DevOmniTools.com](https://devomnitools.com):\n`;
@@ -105,7 +154,8 @@ export function generateArchitectureReport(targetUrl, bundle, endpoints, securit
         markdown: md,
         mermaidDiagram: diagram,
         featuresCsv: csv,
-        securityAuditMarkdown: sec
+        securityAuditMarkdown: sec,
+        sourcemapReportMarkdown: smMd
     };
 }
 //# sourceMappingURL=architecture-mapper.js.map

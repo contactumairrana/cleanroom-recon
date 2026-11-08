@@ -1,7 +1,7 @@
 {
   "name": "@devomnitools/cleanroom-recon",
-  "version": "1.0.0",
-  "description": "Clean-room reverse-engineer any web app into production TypeScript architecture, Mermaid.js system maps, and zero-leak security audits in 60s. Free, MIT.",
+  "version": "1.1.0",
+  "description": "Enterprise-hardened clean-room reverse-engineer any web app into production TypeScript architecture, Mermaid.js system maps, and zero-leak security audits in 60s. Free, MIT.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

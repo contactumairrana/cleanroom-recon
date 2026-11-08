@@ -1,21 +1,22 @@
 #!/usr/bin/env node
 
 /**
- * @devomnitools/cleanroom-recon CLI
+ * @devomnitools/cleanroom-recon CLI (Enterprise Hardened)
  * Clean-Room AI Agent Reverse Engineering & Architectural Blueprint Suite.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { runCleanroomRecon } from '../dist/index.js';
+import { runCleanroomRecon, validateSafeUrl } from '../dist/index.js';
 
 const args = process.argv.slice(2);
 
 if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
   console.log(`
 ╔════════════════════════════════════════════════════════════════════════════╗
-║                   @devomnitools/cleanroom-recon                            ║
+║                   @devomnitools/cleanroom-recon v1.1.0                     ║
 ║    Clean-Room Reverse Engineering & Architectural Blueprint Engine         ║
+║    (Enterprise-Hardened: SSRF Protected · SourceMap Recovery · GraphQL)   ║
 ╚════════════════════════════════════════════════════════════════════════════╝
 
 Usage:
@@ -51,6 +52,12 @@ async function main() {
   let html = '';
 
   if (target.startsWith('http://') || target.startsWith('https://')) {
+    // Pre-flight SSRF check
+    const check = validateSafeUrl(target);
+    if (!check.isValid) {
+      console.error(`❌ [SSRF Block]: ${check.reason}`);
+      process.exit(1);
+    }
     url = target;
     if (!isJson) console.log(`🔍 [cleanroom-recon] Fetching and analyzing live web bundle: ${url}...`);
   } else if (fs.existsSync(target)) {
@@ -75,26 +82,32 @@ async function main() {
 
     const archFile = path.join(resolvedOutDir, 'system-architecture.md');
     const secFile = path.join(resolvedOutDir, 'security-audit.md');
+    const smFile = path.join(resolvedOutDir, 'sourcemap-recovery.md');
     const csvFile = path.join(resolvedOutDir, 'features.csv');
     const mmdFile = path.join(resolvedOutDir, 'architecture.mmd');
 
     fs.writeFileSync(archFile, result.report.markdown, 'utf-8');
     fs.writeFileSync(secFile, result.report.securityAuditMarkdown, 'utf-8');
+    fs.writeFileSync(smFile, result.report.sourcemapReportMarkdown, 'utf-8');
     fs.writeFileSync(csvFile, result.report.featuresCsv, 'utf-8');
     fs.writeFileSync(mmdFile, result.report.mermaidDiagram, 'utf-8');
 
+    const smExposed = result.sourcemaps.some(s => s.hasSourceMap && s.recoveredFiles.length > 0);
+
     console.log(`
-✅ [cleanroom-recon] Analysis Complete in 60s!
+✅ [cleanroom-recon] Enterprise Analysis Complete!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎯 Target:              ${result.targetUrl}
 🖥️ Application Title:   ${result.bundle.title}
 ⚡ Detected Stacks:     ${result.bundle.frameworks.map(f => f.name).join(', ') || 'Vanilla / Static HTML'}
-📡 API Endpoints:       ${result.endpoints.length} routes mapped
-🛡️ Privacy Score:       ${result.security.privacyScore} / 100
+📡 API / WS Endpoints:  ${result.endpoints.length} routes mapped
+🛡️ Privacy Score:       ${result.security.privacyScore} / 100 (${result.security.storageAccessRisks.credentialRiskLevel} Credential Risk)
+📂 SourceMap Recovery:  ${smExposed ? '⚠️ RECOVERED (' + result.sourcemaps[0].sourceCount + ' original files found)' : 'None exposed'}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📂 Generated Artifacts Saved To: ${resolvedOutDir}
   ├── system-architecture.md   (Clean-room spec & Mermaid architecture)
-  ├── security-audit.md        (Third-party telemetry & surveillance risk analysis)
+  ├── security-audit.md        (Storage deductions & surveillance risk analysis)
+  ├── sourcemap-recovery.md    (Recovered original file tree & exposure status)
   ├── features.csv             (Clean-room feature parity matrix)
   └── architecture.mmd         (Raw high-contrast Mermaid.js diagram)
 
@@ -103,10 +116,9 @@ Visit: https://devomnitools.com/en/tools/jwt-decoder/
 `);
 
   } catch (err) {
-    console.error('❌ Fatal error during cleanroom-recon execution:', err);
+    console.error('❌ Fatal error during cleanroom-recon execution:', err.message || err);
     process.exit(1);
   }
 }
 
 main();
-

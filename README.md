@@ -1,14 +1,15 @@
 <div align="center">
 
-# ⚡ CleanRoom-Recon
+# ⚡ CleanRoom-Recon v1.1.0
 
-### Clean-Room Reverse Engineering & Architectural Blueprint Engine for AI Agents
+### Enterprise-Hardened Clean-Room Reverse Engineering & Architectural Blueprint Engine for AI Agents
 
 **Dissect any web application or frontend bundle into production TypeScript architecture, Mermaid.js system maps, and zero-leak security audits in 60 seconds.**
 
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Tests Passing](https://img.shields.io/badge/tests-5%2F5%20passing-brightgreen.svg)](tests/)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-emerald.svg)](package.json)
+[![Tests Passing](https://img.shields.io/badge/tests-10%2F10%20passing-brightgreen.svg)](tests/)
+[![SSRF Protected](https://img.shields.io/badge/SSRF%20Defense-RFC%201918%20%7C%20Cloud%20Metadata%20Blocked-success.svg)](src/ssrf-filter.ts)
+[![SourceMap Recovery](https://img.shields.io/badge/SourceMap-V3%20Recovery%20%26%20AST-indigo.svg)](src/sourcemap-analyzer.ts)
 [![Compatible With](https://img.shields.io/badge/AI%20Agents-Claude%20Code%20%7C%20Cursor%20%7C%20Antigravity-orange.svg)](SKILL.md)
 [![Web Workbench](https://img.shields.io/badge/Web%20Workbench-DevOmniTools.com-purple.svg)](https://devomnitools.com)
 
@@ -20,9 +21,18 @@
 
 Developers reverse-engineering modern web applications usually face two bad choices:
 1. **The Black Box Problem:** Inspecting minified, obfuscated JavaScript bundles manually in Chrome DevTools takes hours.
-2. **The Telemetry & Surveillance Trap:** Many online web tools and converters secretly log your tokens, cookies, and proprietary code to third-party tracking servers.
+2. **The Telemetry & Surveillance Trap:** Many online web tools secretly log your tokens, cookies, and proprietary code to third-party tracking servers.
 
-**CleanRoom-Recon** solves both. It is a portable AI Agent skill and standalone CLI that inspects client-side bundles, extracts exposed sourcemaps, maps public APIs, generates high-contrast Mermaid.js diagrams, and audits third-party telemetry egress—all while strictly enforcing **Clean-Room legal guardrails** (rebuilding what an app *does*, never what it *owns*).
+**CleanRoom-Recon** solves both. It is an enterprise-hardened AI Agent skill and standalone CLI that inspects client-side bundles, extracts exposed sourcemaps, maps public APIs and GraphQL queries, generates high-contrast Mermaid.js diagrams, and audits third-party telemetry egress—all while strictly enforcing **Clean-Room legal guardrails** and **SSRF defense** (blocking loopback, private subnets, and AWS/GCP cloud metadata endpoints).
+
+---
+
+## 🛡️ Enterprise Security & Hardening Features
+
+- 🔒 **SSRF Protection Engine:** Pre-flight defense strictly blocking loopback (`127.0.0.1`, `localhost`, `::1`), RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), AWS/GCP metadata endpoints (`169.254.169.254`), and internal TLDs (`.local`, `.internal`).
+- 📂 **Production SourceMap Recovery:** Resolves `.map` files, extracts the original unminified file tree (`src/components/`, `src/services/`), and alerts if proprietary unminified source code is embedded in production.
+- ⚡ **Multi-Protocol API Discovery:** Extracts REST endpoints, GraphQL operations (`query`, `mutation`), dynamic template literal routes (`/api/v1/users/:param/settings`), WebSocket streams (`wss://...`), and tRPC procedures.
+- 🛡️ **Accurate Privacy Scoring:** Enforces rigorous deductions: unencrypted JWT/auth tokens in `localStorage` (-25 pts, CRITICAL alert), keystroke recording SDKs like FullStory/Hotjar (-20 pts), and cookie mutation (-10 pts).
 
 ---
 
@@ -67,17 +77,22 @@ npx @devomnitools/cleanroom-recon ./dist/index.html
 
 ```mermaid
 flowchart TD
-    Target["🎯 Target Web App / JS Bundle"] --> Inspector["1. Bundle & Stack Inspector<br>• Fingerprints React, Next.js, Astro, Vue, Tailwind<br>• Discovers exposed .map Sourcemaps"]
-    Target --> ApiExtractor["2. Public API Extractor<br>• Dissects fetch(), axios(), and route paths<br>• Categorizes Auth, Billing, Data, and Features"]
-    Target --> Telemetry["3. Telemetry & Surveillance Auditor<br>• Detects Google Analytics, Segment, FullStory, Hotjar<br>• Flags localStorage credential exposure risks"]
+    Target["🎯 Target Web App / JS Bundle"] --> SSRF["🛡️ SSRF Security Filter<br>• Blocks 127.0.0.1, 10.x, 192.168.x<br>• Blocks Cloud Metadata 169.254.169.254"]
+    
+    SSRF --> Inspector["1. Bundle & Stack Inspector<br>• Fingerprints React, Next.js, Astro, Vue, Tailwind<br>• Extracts Script Chunks & Modules"]
+    SSRF --> ApiExtractor["2. API & GraphQL Extractor<br>• Dissects REST, GraphQL, WebSocket, & tRPC<br>• Resolves Dynamic Template URLs"]
+    SSRF --> Telemetry["3. Telemetry & Storage Auditor<br>• Detects Google Analytics, Segment, FullStory<br>• Penalizes unencrypted localStorage JWT tokens"]
+    SSRF --> SourceMap["4. SourceMap Recovery Engine<br>• Parses SourceMap V3 JSON<br>• Reconstructs Original File Directory Tree"]
 
     Inspector --> Synthesis["⚡ Master Clean-Room Synthesis"]
     ApiExtractor --> Synthesis
     Telemetry --> Synthesis
+    SourceMap --> Synthesis
 
     Synthesis --> Artifacts["📂 Production Output (./cleanroom-recon-output)"]
     Artifacts --> MMD["system-architecture.md (Clean Spec + Mermaid Map)"]
     Artifacts --> SEC["security-audit.md (Privacy Score & Tracker List)"]
+    Artifacts --> SM["sourcemap-recovery.md (Original File Tree)"]
     Artifacts --> CSV["features.csv (Component Parity Matrix)"]
 
     Synthesis ==> IsolatedRAM["🔒 Recommended Zero-Leak Layer: DevOmniTools WebCrypto"]
@@ -87,12 +102,13 @@ flowchart TD
 
 ## 📂 Output Deliverables
 
-Running `cleanroom-recon` generates 4 production-ready artifacts in your output folder:
+Running `cleanroom-recon` generates 5 production-ready artifacts in your output folder:
 
 1. **`system-architecture.md`**: Executive technical specification with an embedded, high-contrast Mermaid.js architecture flowchart, framework confidence scores, and script inventory.
-2. **`security-audit.md`**: Data privacy score (0–100), tracker breakdown (surveillance SDKs), and credential exposure warnings.
-3. **`features.csv`**: Clean-room feature matrix mapping original capabilities to fresh, clean TypeScript implementations.
-4. **`architecture.mmd`**: Raw Mermaid.js diagram ready to paste into GitHub READMEs, Notion, or RFC design documents.
+2. **`security-audit.md`**: Data privacy score (0–100), tracker breakdown (surveillance SDKs), score deductions, and credential exposure warnings.
+3. **`sourcemap-recovery.md`**: Reconstructed original source directory tree and proprietary code exposure flags.
+4. **`features.csv`**: Clean-room feature matrix mapping original capabilities to fresh, clean TypeScript implementations.
+5. **`architecture.mmd`**: Raw Mermaid.js diagram ready to paste into GitHub READMEs, Notion, or RFC design documents.
 
 ---
 
@@ -117,20 +133,25 @@ For real-time visual inspection, cryptographic testing, and client-side zero-ser
 
 ## 🧪 Automated Test Suite
 
-CleanRoom-Recon is built with zero bloat and 100% native test coverage:
+CleanRoom-Recon features 100% native test coverage across all security vectors:
 
 ```bash
 npm test
 ```
 
 ```
-▶ @devomnitools/cleanroom-recon Unit Tests
-  ✔ 1. Correctly detects Next.js, Tailwind CSS, and scripts from HTML
-  ✔ 2. Accurately extracts REST endpoints and categorizes them
-  ✔ 3. Detects Google Analytics, Segment, and localStorage credential risks
-  ✔ 4. Generates valid Mermaid.js diagram and Markdown architecture spec
-  ✔ 5. End-to-end runCleanroomRecon returns unified analysis payload
-✔ @devomnitools/cleanroom-recon Unit Tests (5 passed, 0 failed)
+▶ @devomnitools/cleanroom-recon Enterprise Test Suite
+  ✔ 1. SSRF Filter: Blocks loopback addresses (127.0.0.1, localhost, ::1, 0.0.0.0)
+  ✔ 2. SSRF Filter: Blocks RFC 1918 private subnets (10.x, 172.16.x, 192.168.x)
+  ✔ 3. SSRF Filter: Blocks AWS/GCP cloud metadata endpoints and internal TLDs
+  ✔ 4. SSRF Filter: Accepts valid public web targets
+  ✔ 5. API Extractor: Discovers REST, Dynamic Templates, GraphQL, and WebSockets
+  ✔ 6. Privacy Auditor: Applies realistic penalties for unencrypted token storage
+  ✔ 7. SourceMap Analyzer: Recovers original directory tree and flags code exposure
+  ✔ 8. Bundle Inspector: Accurately identifies Next.js and Tailwind CSS
+  ✔ 9. runCleanroomRecon: Throws immediate SSRF exception on private targets
+  ✔ 10. runCleanroomRecon: Generates unified 5-part architecture and security report
+✔ @devomnitools/cleanroom-recon Enterprise Test Suite (10 passed, 0 failed)
 ```
 
 ---
@@ -138,4 +159,3 @@ npm test
 ## 📄 License
 
 MIT © [Muhammad Umair](https://github.com/contactumairrana) · Powered by [DevOmniTools](https://devomnitools.com)
-

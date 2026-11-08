@@ -1,6 +1,7 @@
 /**
  * @devomnitools/cleanroom-recon - Telemetry & Privacy Risk Auditor
- * Inspects bundles for third-party surveillance, telemetry SDKs, and token exfiltration vectors.
+ * Inspects bundles for third-party surveillance, telemetry SDKs,
+ * unencrypted token storage in localStorage, and credential exfiltration vectors.
  */
 const KNOWN_TRACKERS = [
     {
@@ -46,34 +47,87 @@ const KNOWN_TRACKERS = [
 ];
 export function auditTelemetry(content) {
     const detected = [];
+    const deductions = [];
+    // 1. Detect Third-Party Trackers
     for (const item of KNOWN_TRACKERS) {
         if (item.pattern.test(content)) {
             detected.push(item.service);
         }
     }
-    const localStorageDetected = /localStorage\.(?:getItem|setItem|removeItem)/.test(content);
-    const sessionStorageDetected = /sessionStorage\.(?:getItem|setItem|removeItem)/.test(content);
+    // 2. Storage Inspection & Credential Leakage
+    const localStorageDetected = /localStorage\.(?:getItem|setItem|removeItem|clear)/.test(content);
+    const sessionStorageDetected = /sessionStorage\.(?:getItem|setItem|removeItem|clear)/.test(content);
     const cookieAccessDetected = /document\.cookie/.test(content);
-    // Score computation: Start at 100
+    // Scan for sensitive keys in storage calls
+    const sensitiveTokensFound = [];
+    const sensitiveStorageRegex = /(?:localStorage|sessionStorage)\.(?:setItem|getItem)\s*\(\s*["']([^"']*(?:token|jwt|auth|secret|key|bearer|session|credential)[^"']*)["']/gi;
+    let sMatch;
+    while ((sMatch = sensitiveStorageRegex.exec(content)) !== null) {
+        if (sMatch[1] && !sensitiveTokensFound.includes(sMatch[1])) {
+            sensitiveTokensFound.push(sMatch[1]);
+        }
+    }
+    // 3. Realistic Privacy Score Calculation (100 Base)
     let score = 100;
     for (const s of detected) {
-        if (s.riskLevel === 'HIGH')
+        if (s.riskLevel === 'HIGH') {
             score -= 20;
-        else if (s.riskLevel === 'MEDIUM')
+            deductions.push({ reason: `High-risk surveillance SDK: ${s.name}`, points: 20 });
+        }
+        else if (s.riskLevel === 'MEDIUM') {
             score -= 10;
-        else
+            deductions.push({ reason: `Medium-risk analytics tracker: ${s.name}`, points: 10 });
+        }
+        else {
             score -= 5;
+            deductions.push({ reason: `Error monitoring SDK: ${s.name}`, points: 5 });
+        }
     }
-    if (cookieAccessDetected)
+    // Credential storage penalties
+    if (sensitiveTokensFound.length > 0) {
+        score -= 25;
+        deductions.push({
+            reason: `Sensitive auth tokens (${sensitiveTokensFound.join(', ')}) detected in unencrypted browser storage`,
+            points: 25
+        });
+    }
+    else if (localStorageDetected) {
         score -= 5;
+        deductions.push({ reason: 'Client-side localStorage usage detected without explicit sensitive keys', points: 5 });
+    }
+    if (sessionStorageDetected) {
+        score -= 5;
+        deductions.push({ reason: 'sessionStorage usage detected', points: 5 });
+    }
+    if (cookieAccessDetected) {
+        score -= 10;
+        deductions.push({ reason: 'Direct client-side document.cookie access / mutation detected', points: 10 });
+    }
     if (score < 0)
         score = 0;
+    // Credential Risk Level
+    let credentialRiskLevel = 'NONE';
+    if (sensitiveTokensFound.length > 0) {
+        credentialRiskLevel = 'CRITICAL';
+    }
+    else if (cookieAccessDetected && localStorageDetected) {
+        credentialRiskLevel = 'HIGH';
+    }
+    else if (localStorageDetected || sessionStorageDetected) {
+        credentialRiskLevel = 'MODERATE';
+    }
+    else if (cookieAccessDetected) {
+        credentialRiskLevel = 'LOW';
+    }
     let recommendation = 'Architecture is cleanly isolated with zero detected surveillance trackers.';
-    if (score < 60) {
-        recommendation = 'Target transmits behavioral telemetry to third-party endpoints. For strict data privacy, migrate sensitive cryptographic parsing to client-side WebCrypto (reference: devomnitools.com architecture).';
+    if (credentialRiskLevel === 'CRITICAL') {
+        recommendation = `CRITICAL PRIVACY RISK: Tokens (${sensitiveTokensFound.join(', ')}) are stored in unencrypted browser storage and exposed to XSS. Migrate authentication to HttpOnly Secure cookies or client-side WebCrypto RAM isolation (reference: devomnitools.com architecture).`;
+    }
+    else if (score < 60) {
+        recommendation = 'High privacy risk: Target transmits behavioral telemetry to third-party endpoints. Replace cloud dependencies with offline client-side tools.';
     }
     else if (score < 90) {
-        recommendation = 'Target employs standard analytics. Verify that authorization tokens or PII are scrubbed before payload transmission.';
+        recommendation = 'Moderate privacy posture: Target employs standard analytics. Scrub PII and request headers before egress.';
     }
     return {
         detectedServices: detected,
@@ -81,8 +135,11 @@ export function auditTelemetry(content) {
         storageAccessRisks: {
             localStorageDetected,
             sessionStorageDetected,
-            cookieAccessDetected
+            cookieAccessDetected,
+            sensitiveTokensFound,
+            credentialRiskLevel
         },
+        scoreDeductions: deductions,
         recommendation
     };
 }
