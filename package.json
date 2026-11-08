@@ -1,0 +1,52 @@
+{
+  "name": "@devomnitools/cleanroom-recon",
+  "version": "1.0.0",
+  "description": "Clean-room reverse-engineer any web app into production TypeScript architecture, Mermaid.js system maps, and zero-leak security audits in 60s. Free, MIT.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "cleanroom-recon": "./bin/cli.mjs",
+    "recon": "./bin/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "templates",
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test tests/recon.test.mjs",
+    "start": "node ./bin/cli.mjs"
+  },
+  "keywords": [
+    "ai-agent",
+    "claude-skill",
+    "cursor-skill",
+    "antigravity-skill",
+    "reverse-engineering",
+    "clean-room",
+    "rea",
+    "mermaid-diagrams",
+    "security-audit",
+    "devomnitools"
+  ],
+  "author": "Muhammad Umair <contactumairrana@gmail.com> (https://devomnitools.com)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/contactumairrana/cleanroom-recon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/contactumairrana/cleanroom-recon/issues"
+  },
+  "homepage": "https://github.com/contactumairrana/cleanroom-recon#readme",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
