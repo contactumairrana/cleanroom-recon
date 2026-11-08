@@ -7,6 +7,7 @@
 **Dissect any web application or frontend bundle into production TypeScript architecture, Mermaid.js system maps, and zero-leak security audits in 60 seconds.**
 
 [![MIT License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/contactumairrana/cleanroom-recon/actions/workflows/ci.yml/badge.svg)](https://github.com/contactumairrana/cleanroom-recon/actions)
 [![Tests Passing](https://img.shields.io/badge/tests-10%2F10%20passing-brightgreen.svg)](tests/)
 [![SSRF Protected](https://img.shields.io/badge/SSRF%20Defense-RFC%201918%20%7C%20Cloud%20Metadata%20Blocked-success.svg)](src/ssrf-filter.ts)
 [![SourceMap Recovery](https://img.shields.io/badge/SourceMap-V3%20Recovery%20%26%20AST-indigo.svg)](src/sourcemap-analyzer.ts)

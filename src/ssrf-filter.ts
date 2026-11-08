@@ -143,3 +143,4 @@ export async function safeFetch(url: string, init?: RequestInit): Promise<Respon
     redirect: 'follow'
   });
 }
+
